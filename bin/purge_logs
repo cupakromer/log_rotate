@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH << File.expand_path('../lib', File.dirname(__FILE__))
+
+def usage
+<<EOF
+Usage:
+  #{File.basename __FILE__} DIRECTORY
+EOF
+end
+
+directory = ARGV[0].to_s
+
+unless File.directory? directory
+  puts 'Must provide a valid directory.'
+  puts usage
+  exit 1
+end
+
+purger = Purger.new directory
+purger.purge
+
+puts "#{purger.last_purged.count} logs purged"
