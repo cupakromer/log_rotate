@@ -1,0 +1,3 @@
+class Purger
+
+end
