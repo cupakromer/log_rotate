@@ -30,9 +30,9 @@ class Purger
   def files_to_delete
     all_files = Dir["#{last_purged_directory}/*"]
     whitelist = whitelist_policies.each_with_object([]){ |policy, whitelist|
-      whitelist.concat policy.new.matches all_files
+      whitelist.concat policy.matches all_files
     }
 
-    all_files - whitelist
+    all_files - whitelist.uniq
   end
 end
