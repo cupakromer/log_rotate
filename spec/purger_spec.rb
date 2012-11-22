@@ -1,6 +1,9 @@
 require 'spec_helper'
 
 class KeepAllFiles
+  def matches(file_names)
+    file_names
+  end
 end
 
 class DeleteAllFiles
@@ -13,6 +16,10 @@ describe Purger, fakefs: true do
   class TestPurger < Purger
     def added_keep_rules
       keep_rules
+    end
+
+    def last_purged=(file_names)
+      super file_names
     end
   end
 
@@ -40,12 +47,41 @@ describe Purger, fakefs: true do
     end
   end
 
+  describe '#last_purged' do
+    it 'is empty if #purge is never called' do
+      purger.last_purged.should be_empty
+    end
+
+    it 'is empty if no files were deleted when purge was called' do
+      FileUtils.mkdir 'adirectory'
+      purger.add_keep_rules KeepAllFiles
+      purger.last_purged = ['a file']
+      purger.last_purged.should_not be_empty
+
+      purger.purge
+
+      purger.last_purged.should be_empty
+    end
+
+    it 'contains the names of files that were deleted when purge was called' do
+      FileUtils.mkdir 'adirectory'
+      FileUtils.touch 'adirectory/file1.log'
+      FileUtils.touch 'adirectory/file2.log'
+      purger.add_keep_rules DeleteAllFiles
+
+      purger.purge
+
+      purger.last_purged.should match_array ['adirectory/file1.log',
+                                             'adirectory/file2.log']
+    end
+  end
+
   describe '#purge' do
     it 'returns self' do
       purger.purge.should be purger
     end
 
-    context 'no rules provided' do
+    context 'when no rules provided' do
       it '#last_purged should be empty' do
         purger.purge.last_purged.should be_empty
       end
@@ -59,7 +95,7 @@ describe Purger, fakefs: true do
       File.file?('adirectory/file2.log').should be_true
       purger.add_keep_rules DeleteAllFiles
 
-        purger.purge
+      purger.purge
 
       File.exist?('adirectory/file1.log').should be_false
       File.exist?('adirectory/file2.log').should be_false

@@ -1,8 +1,9 @@
 class Purger
-  attr_reader :directory
+  attr_reader :directory, :last_purged
 
   def initialize(directory)
     @keep_rules = []
+    @last_purged = []
     @directory = File.expand_path directory
   end
 
@@ -11,11 +12,9 @@ class Purger
 
     File.delete *memo_to_delete unless memo_to_delete.empty?
 
-    self
-  end
+    self.last_purged = memo_to_delete
 
-  def last_purged
-    []
+    self
   end
 
   def add_keep_rules(rules)
@@ -26,6 +25,7 @@ class Purger
   private
 
   attr_accessor :keep_rules
+  attr_writer :last_purged
 
   def files_to_delete
     all_files = Dir["#{directory}/*"]
