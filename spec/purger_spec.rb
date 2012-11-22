@@ -4,6 +4,9 @@ class KeepAllFiles
 end
 
 class DeleteAllFiles
+  def matches(file_names)
+    []
+  end
 end
 
 describe Purger, fakefs: true do
@@ -48,17 +51,18 @@ describe Purger, fakefs: true do
       end
     end
 
-    context 'one rule provided' do
-      it 'deletes files that match the rule' do
-        FileUtils.mkdir 'adirectory'
-        FileUtils.touch 'adirectory/file1.log'
-        File.file?('adirectory/file1.log').should be_true
-        purger.add_keep_rules KeepAllFiles
+    it 'when one rule provided it deletes files that match the rule' do
+      FileUtils.mkdir 'adirectory'
+      FileUtils.touch 'adirectory/file1.log'
+      FileUtils.touch 'adirectory/file2.log'
+      File.file?('adirectory/file1.log').should be_true
+      File.file?('adirectory/file2.log').should be_true
+      purger.add_keep_rules DeleteAllFiles
 
         purger.purge
 
-        File.exist?('adirectory/file1.log').should be_false
-      end
+      File.exist?('adirectory/file1.log').should be_false
+      File.exist?('adirectory/file2.log').should be_false
     end
   end
 end
