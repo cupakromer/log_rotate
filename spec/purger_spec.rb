@@ -38,8 +38,8 @@ end
 
 describe Purger, fakefs: true do
   class TestPurger < Purger
-    def added_keep_rules
-      keep_rules
+    def added_whitelist_policies
+      whitelist_policies
     end
 
     def last_purged=(file_names)
@@ -53,21 +53,21 @@ describe Purger, fakefs: true do
     expect{ Purger.new }.to raise_error ArgumentError
   end
 
-  describe '#add_keep_rules' do
+  describe '#add_whitelist_policies' do
     it 'requires one or more rules' do
-      expect{ purger.add_keep_rules }.to raise_error ArgumentError
+      expect{ purger.add_whitelist_policies }.to raise_error ArgumentError
     end
 
     it 'given one rule it is added to the rules keep set' do
-      purger.add_keep_rules KeepAllFiles
+      purger.add_whitelist_policies KeepAllFiles
 
-      purger.added_keep_rules.should match_array [KeepAllFiles]
+      purger.added_whitelist_policies.should match_array [KeepAllFiles]
     end
 
     it 'given several rules they are all added to the rules to keep set' do
-      purger.add_keep_rules [KeepAllFiles, DeleteAllFiles]
+      purger.add_whitelist_policies [KeepAllFiles, DeleteAllFiles]
 
-      purger.added_keep_rules.should match_array [KeepAllFiles, DeleteAllFiles]
+      purger.added_whitelist_policies.should match_array [KeepAllFiles, DeleteAllFiles]
     end
   end
 
@@ -78,7 +78,7 @@ describe Purger, fakefs: true do
 
     it 'is empty if no files were deleted when purge was called' do
       FileUtils.mkdir 'adirectory'
-      purger.add_keep_rules KeepAllFiles
+      purger.add_whitelist_policies KeepAllFiles
       purger.last_purged = ['a file']
       purger.last_purged.should_not be_empty
 
@@ -91,7 +91,7 @@ describe Purger, fakefs: true do
       FileUtils.mkdir 'adirectory'
       FileUtils.touch 'adirectory/file1.log'
       FileUtils.touch 'adirectory/file2.log'
-      purger.add_keep_rules DeleteAllFiles
+      purger.add_whitelist_policies DeleteAllFiles
 
       purger.purge
 
@@ -121,7 +121,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete nothing' do
-        purger.add_keep_rules KeepAllFiles
+        purger.add_whitelist_policies KeepAllFiles
 
         purger.purge
 
@@ -130,7 +130,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete all files' do
-        purger.add_keep_rules DeleteAllFiles
+        purger.add_whitelist_policies DeleteAllFiles
 
         purger.purge
 
@@ -139,7 +139,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete one file' do
-        purger.add_keep_rules DeleteFirstFile
+        purger.add_whitelist_policies DeleteFirstFile
 
         purger.purge
 
@@ -153,7 +153,7 @@ describe Purger, fakefs: true do
       6.times{|index| FileUtils.touch "adirectory/file#{index}.log" }
       6.times{|index| File.file?("adirectory/file#{index}.log").should be_true}
 
-      purger.add_keep_rules [KeepFirstFile, KeepLastFile, Keep3rdFile]
+      purger.add_whitelist_policies [KeepFirstFile, KeepLastFile, Keep3rdFile]
 
       purger.purge
 

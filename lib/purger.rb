@@ -2,7 +2,7 @@ class Purger
   attr_reader :directory, :last_purged
 
   def initialize(directory)
-    @keep_rules = []
+    @whitelist_policies = []
     @last_purged = []
     @directory = File.expand_path directory
   end
@@ -17,22 +17,22 @@ class Purger
     self
   end
 
-  def add_keep_rules(rules)
-    keep_rules.concat Array(rules)
+  def add_whitelist_policies(whitelists)
+    whitelist_policies.concat Array(whitelists)
     self
   end
 
   private
 
-  attr_accessor :keep_rules
+  attr_accessor :whitelist_policies
   attr_writer :last_purged
 
   def files_to_delete
     all_files = Dir["#{directory}/*"]
-    files_to_keep = keep_rules.each_with_object([]){ |rule, files_to_keep|
-      files_to_keep.concat rule.new.matches all_files
+    whitelist = whitelist_policies.each_with_object([]){ |policy, whitelist|
+      whitelist.concat policy.new.matches all_files
     }
 
-    all_files - files_to_keep
+    all_files - whitelist
   end
 end
