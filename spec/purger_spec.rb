@@ -1,9 +1,9 @@
 require 'spec_helper'
 
-class MatchAllRule
+class KeepAllFiles
 end
 
-class DenyAllRule
+class DeleteAllFiles
 end
 
 describe Purger, fakefs: true do
@@ -25,15 +25,15 @@ describe Purger, fakefs: true do
     end
 
     it 'given one rule it is added to the rules keep set' do
-      purger.add_keep_rules MatchAllRule
+      purger.add_keep_rules KeepAllFiles
 
-      purger.added_keep_rules.should match_array [MatchAllRule]
+      purger.added_keep_rules.should match_array [KeepAllFiles]
     end
 
     it 'given several rules they are all added to the rules to keep set' do
-      purger.add_keep_rules [MatchAllRule, DenyAllRule]
+      purger.add_keep_rules [KeepAllFiles, DeleteAllFiles]
 
-      purger.added_keep_rules.should match_array [MatchAllRule, DenyAllRule]
+      purger.added_keep_rules.should match_array [KeepAllFiles, DeleteAllFiles]
     end
   end
 
@@ -53,7 +53,7 @@ describe Purger, fakefs: true do
         FileUtils.mkdir 'adirectory'
         FileUtils.touch 'adirectory/file1.log'
         File.file?('adirectory/file1.log').should be_true
-        purger.add_keep_rules MatchAllRule
+        purger.add_keep_rules KeepAllFiles
 
         purger.purge
 
