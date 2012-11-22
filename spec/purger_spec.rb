@@ -41,6 +41,11 @@ describe Purger, fakefs: true do
 
   subject(:purger) { TestPurger.new }
 
+  it { should respond_to :add_whitelist_policies }
+  it { should respond_to :purge }
+  it { should respond_to :last_purged_directory }
+  it { should respond_to :last_purged }
+
   describe '#new' do
     it 'uses an empty the whitelist policy set by default' do
       TestPurger.new.added_whitelist_policies.should be_empty
@@ -107,6 +112,22 @@ describe Purger, fakefs: true do
     end
   end
 
+  describe '#last_purged_directory' do
+    it 'returns `nil` before first purge' do
+      purger.last_purged_directory.should be_nil
+    end
+
+    it 'returns the full path of the last directory passed to `#purge`' do
+      FileUtils.mkdir_p '/tmp/test/adirectory'
+      FileUtils.mkdir_p '/tmp/test/bdirectory'
+      purger.purge('adirectory', '/tmp/test')
+
+      purger.purge('bdirectory', '/tmp/test')
+            .last_purged_directory
+            .should eq '/tmp/test/bdirectory'
+    end
+  end
+
   describe '#purge' do
     it 'returns self' do
       purger.purge('adirectory').should be purger
@@ -115,6 +136,52 @@ describe Purger, fakefs: true do
     context 'when no rules provided' do
       it '#last_purged should be empty' do
         purger.purge('adirectory').last_purged.should be_empty
+      end
+    end
+
+    context 'given only a directory' do
+      before do
+        FileUtils.mkdir 'adirectory'
+        FileUtils.mkdir_p '/tmp/test/adirectory'
+        FileUtils.touch 'adirectory/file1.log'
+        FileUtils.touch '/tmp/test/adirectory/file1.log'
+        File.file?('adirectory/file1.log').should be_true
+        File.file?('/tmp/test/adirectory/file1.log').should be_true
+
+        purger.add_whitelist_policies DeleteAllFiles.new
+
+        purger.purge 'adirectory'
+      end
+
+      it 'deletes relative to the current directory' do
+        File.exist?('adirectory/file1.log').should be_false
+      end
+
+      it 'does not delete other directory files' do
+        File.exist?('/tmp/test/adirectory/file1.log').should be_true
+      end
+    end
+
+    context 'given a directory and a basepath' do
+      before do
+        FileUtils.mkdir 'adirectory'
+        FileUtils.mkdir_p '/tmp/test/adirectory'
+        FileUtils.touch 'adirectory/file1.log'
+        FileUtils.touch '/tmp/test/adirectory/file1.log'
+        File.file?('adirectory/file1.log').should be_true
+        File.file?('/tmp/test/adirectory/file1.log').should be_true
+
+        purger.add_whitelist_policies DeleteAllFiles.new
+
+        purger.purge 'adirectory', '/tmp/test'
+      end
+
+      it 'deletes relative to the basepath directory' do
+        File.exist?('/tmp/test/adirectory/file1.log').should be_false
+      end
+
+      it 'does not delete other directory files' do
+        File.exist?('adirectory/file1.log').should be_true
       end
     end
 

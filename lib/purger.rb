@@ -6,8 +6,8 @@ class Purger
     @last_purged = []
   end
 
-  def purge(directory)
-    self.last_purged_directory = File.expand_path directory
+  def purge(directory, basepath=nil)
+    self.last_purged_directory = File.expand_path directory, basepath
     memo_to_delete = files_to_delete
 
     File.delete *memo_to_delete unless memo_to_delete.empty?
