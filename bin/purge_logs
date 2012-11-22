@@ -17,8 +17,9 @@ unless File.directory? directory
   exit 1
 end
 
-purger = Purger.new directory
-purger.add_keep_rules KeepRule.all_known
-purger.purge
+
+purger = Purger.new DefaultWhitelists.new
+
+purger.purge directory
 
 puts "#{purger.last_purged.count} logs purged"
