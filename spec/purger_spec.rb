@@ -22,12 +22,6 @@ class KeepSpecificFile
   end
 end
 
-class DeleteFirstFile
-  def filter(file_names)
-    Array file_names[1..-1]
-  end
-end
-
 describe Purger, fakefs: true do
   class TestPurger < Purger
     def set_policy_manager
