@@ -1,13 +1,13 @@
 class Purger
-  attr_reader :directory, :last_purged
+  attr_reader :last_purged_directory, :last_purged
 
-  def initialize(directory)
-    @whitelist_policies = []
+  def initialize(whitelist_policies=[])
+    @whitelist_policies = Array(whitelist_policies)
     @last_purged = []
-    @directory = File.expand_path directory
   end
 
-  def purge
+  def purge(directory)
+    self.last_purged_directory = File.expand_path directory
     memo_to_delete = files_to_delete
 
     File.delete *memo_to_delete unless memo_to_delete.empty?
@@ -25,10 +25,10 @@ class Purger
   private
 
   attr_accessor :whitelist_policies
-  attr_writer :last_purged
+  attr_writer :last_purged, :last_purged_directory
 
   def files_to_delete
-    all_files = Dir["#{directory}/*"]
+    all_files = Dir["#{last_purged_directory}/*"]
     whitelist = whitelist_policies.each_with_object([]){ |policy, whitelist|
       whitelist.concat policy.new.matches all_files
     }

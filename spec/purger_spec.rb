@@ -47,10 +47,24 @@ describe Purger, fakefs: true do
     end
   end
 
-  subject(:purger) { TestPurger.new 'adirectory' }
+  subject(:purger) { TestPurger.new }
 
-  it '#new requires a directory' do
-    expect{ Purger.new }.to raise_error ArgumentError
+  describe '#new' do
+    it 'uses an empty the whitelist policy set by default' do
+      TestPurger.new.added_whitelist_policies.should be_empty
+    end
+
+    it 'will accept a single policy' do
+      TestPurger.new(KeepAllFiles)
+                .added_whitelist_policies
+                .should match_array [KeepAllFiles]
+    end
+
+    it 'will accept multiple policies' do
+      TestPurger.new([KeepAllFiles, DeleteFirstFile])
+                .added_whitelist_policies
+                .should match_array [KeepAllFiles, DeleteFirstFile]
+    end
   end
 
   describe '#add_whitelist_policies' do
@@ -82,7 +96,7 @@ describe Purger, fakefs: true do
       purger.last_purged = ['a file']
       purger.last_purged.should_not be_empty
 
-      purger.purge
+      purger.purge 'adirectory'
 
       purger.last_purged.should be_empty
     end
@@ -93,7 +107,7 @@ describe Purger, fakefs: true do
       FileUtils.touch 'adirectory/file2.log'
       purger.add_whitelist_policies DeleteAllFiles
 
-      purger.purge
+      purger.purge 'adirectory'
 
       purger.last_purged.should match_array ['adirectory/file1.log',
                                              'adirectory/file2.log']
@@ -102,12 +116,12 @@ describe Purger, fakefs: true do
 
   describe '#purge' do
     it 'returns self' do
-      purger.purge.should be purger
+      purger.purge('adirectory').should be purger
     end
 
     context 'when no rules provided' do
       it '#last_purged should be empty' do
-        purger.purge.last_purged.should be_empty
+        purger.purge('adirectory').last_purged.should be_empty
       end
     end
 
@@ -123,7 +137,7 @@ describe Purger, fakefs: true do
       it 'example: delete nothing' do
         purger.add_whitelist_policies KeepAllFiles
 
-        purger.purge
+        purger.purge 'adirectory'
 
         File.exist?('adirectory/file1.log').should be_true
         File.exist?('adirectory/file2.log').should be_true
@@ -132,7 +146,7 @@ describe Purger, fakefs: true do
       it 'example: delete all files' do
         purger.add_whitelist_policies DeleteAllFiles
 
-        purger.purge
+        purger.purge 'adirectory'
 
         File.exist?('adirectory/file1.log').should be_false
         File.exist?('adirectory/file2.log').should be_false
@@ -141,7 +155,7 @@ describe Purger, fakefs: true do
       it 'example: delete one file' do
         purger.add_whitelist_policies DeleteFirstFile
 
-        purger.purge
+        purger.purge 'adirectory'
 
         File.exist?('adirectory/file1.log').should be_false
         File.exist?('adirectory/file2.log').should be_true
@@ -155,7 +169,7 @@ describe Purger, fakefs: true do
 
       purger.add_whitelist_policies [KeepFirstFile, KeepLastFile, Keep3rdFile]
 
-      purger.purge
+      purger.purge 'adirectory'
 
       File.exist?('adirectory/file0.log').should be_true
       File.exist?('adirectory/file1.log').should be_false
