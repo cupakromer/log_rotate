@@ -12,6 +12,12 @@ class DeleteAllFiles
   end
 end
 
+class DeleteFirstFile
+  def matches(file_names)
+    Array file_names[1..-1]
+  end
+end
+
 describe Purger, fakefs: true do
   class TestPurger < Purger
     def added_keep_rules
@@ -87,18 +93,41 @@ describe Purger, fakefs: true do
       end
     end
 
-    it 'when one rule provided it deletes files that match the rule' do
-      FileUtils.mkdir 'adirectory'
-      FileUtils.touch 'adirectory/file1.log'
-      FileUtils.touch 'adirectory/file2.log'
-      File.file?('adirectory/file1.log').should be_true
-      File.file?('adirectory/file2.log').should be_true
-      purger.add_keep_rules DeleteAllFiles
+    context 'when one rule provided it deletes files that match the rule' do
+      before do
+        FileUtils.mkdir 'adirectory'
+        FileUtils.touch 'adirectory/file1.log'
+        FileUtils.touch 'adirectory/file2.log'
+        File.file?('adirectory/file1.log').should be_true
+        File.file?('adirectory/file2.log').should be_true
+      end
 
-      purger.purge
+      it 'example: delete nothing' do
+        purger.add_keep_rules KeepAllFiles
 
-      File.exist?('adirectory/file1.log').should be_false
-      File.exist?('adirectory/file2.log').should be_false
+        purger.purge
+
+        File.exist?('adirectory/file1.log').should be_true
+        File.exist?('adirectory/file2.log').should be_true
+      end
+
+      it 'example: delete all files' do
+        purger.add_keep_rules DeleteAllFiles
+
+        purger.purge
+
+        File.exist?('adirectory/file1.log').should be_false
+        File.exist?('adirectory/file2.log').should be_false
+      end
+
+      it 'example: delete one file' do
+        purger.add_keep_rules DeleteFirstFile
+
+        purger.purge
+
+        File.exist?('adirectory/file1.log').should be_false
+        File.exist?('adirectory/file2.log').should be_true
+      end
     end
   end
 end
