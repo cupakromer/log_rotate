@@ -1,9 +1,9 @@
 class Purger
   attr_reader :last_purged_directory, :last_purged
 
-  def initialize(whitelist_policies=[])
-    @whitelist_policies = Array(whitelist_policies)
-    @last_purged = []
+  def initialize(policy_manager)
+    self.policy_manager = policy_manager
+    self.last_purged = []
   end
 
   def purge(directory, basepath=nil)
@@ -17,22 +17,14 @@ class Purger
     self
   end
 
-  def add_whitelist_policies(whitelists)
-    whitelist_policies.concat Array(whitelists)
-    self
-  end
-
   private
 
-  attr_accessor :whitelist_policies
+  attr_accessor :policy_manager
   attr_writer :last_purged, :last_purged_directory
 
   def files_to_delete
     all_files = Dir["#{last_purged_directory}/*"]
-    whitelist = whitelist_policies.each_with_object([]){ |policy, whitelist|
-      whitelist.concat policy.matches all_files
-    }
 
-    all_files - whitelist.uniq
+    all_files - policy_manager.filter(all_files)
   end
 end

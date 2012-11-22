@@ -1,13 +1,13 @@
 require 'spec_helper'
 
 class KeepAllFiles
-  def matches(file_names)
+  def filter(file_names)
     file_names
   end
 end
 
 class DeleteAllFiles
-  def matches(file_names)
+  def filter(file_names)
     []
   end
 end
@@ -17,21 +17,21 @@ class KeepSpecificFile
     @filename = file_to_keep
   end
 
-  def matches(file_names)
+  def filter(file_names)
     Array @filename
   end
 end
 
 class DeleteFirstFile
-  def matches(file_names)
+  def filter(file_names)
     Array file_names[1..-1]
   end
 end
 
 describe Purger, fakefs: true do
   class TestPurger < Purger
-    def added_whitelist_policies
-      whitelist_policies
+    def set_policy_manager
+      policy_manager
     end
 
     def last_purged=(file_names)
@@ -39,47 +39,24 @@ describe Purger, fakefs: true do
     end
   end
 
-  subject(:purger) { TestPurger.new }
+  let(:policy_manager) { GenericPolicyManager.new }
+  subject(:purger) { Purger.new policy_manager }
 
-  it { should respond_to :add_whitelist_policies }
+  it { should_not respond_to :add_whitelist_policies }
   it { should respond_to :purge }
   it { should respond_to :last_purged_directory }
   it { should respond_to :last_purged }
 
   describe '#new' do
-    it 'uses an empty the whitelist policy set by default' do
-      TestPurger.new.added_whitelist_policies.should be_empty
+    it 'requires a policy manager' do
+      expect{ Purger.new }.to raise_error ArgumentError
     end
 
     it 'will accept a single policy' do
-      TestPurger.new(policy = KeepAllFiles.new)
-                .added_whitelist_policies
-                .should match_array [policy]
-    end
-
-    it 'will accept multiple policies' do
-      TestPurger.new(policies = [KeepAllFiles.new, DeleteFirstFile.new])
-                .added_whitelist_policies
-                .should match_array policies
-    end
-  end
-
-  describe '#add_whitelist_policies' do
-    it 'requires one or more rules' do
-      expect{ purger.add_whitelist_policies }.to raise_error ArgumentError
-    end
-
-    it 'given one rule it is added to the rules keep set' do
-      purger.add_whitelist_policies(policy = KeepAllFiles.new)
-
-      purger.added_whitelist_policies.should match_array Array policy
-    end
-
-    it 'given several rules they are all added to the rules to keep set' do
-      policies = [KeepAllFiles.new, DeleteFirstFile.new]
-      purger.add_whitelist_policies policies
-
-      purger.added_whitelist_policies.should match_array policies
+      policy_manager = mock GenericPolicyManager
+      TestPurger.new(policy_manager)
+                .set_policy_manager
+                .should be policy_manager
     end
   end
 
@@ -90,7 +67,7 @@ describe Purger, fakefs: true do
 
     it 'is empty if no files were deleted when purge was called' do
       FileUtils.mkdir 'adirectory'
-      purger.add_whitelist_policies KeepAllFiles.new
+      purger = TestPurger.new KeepAllFiles.new
       purger.last_purged = ['a file']
       purger.last_purged.should_not be_empty
 
@@ -103,7 +80,7 @@ describe Purger, fakefs: true do
       FileUtils.mkdir 'adirectory'
       FileUtils.touch 'adirectory/file1.log'
       FileUtils.touch 'adirectory/file2.log'
-      purger.add_whitelist_policies DeleteAllFiles.new
+      purger = TestPurger.new DeleteAllFiles.new
 
       purger.purge 'adirectory'
 
@@ -140,6 +117,8 @@ describe Purger, fakefs: true do
     end
 
     context 'given only a directory' do
+      let(:policy_manager) { DeleteAllFiles.new }
+
       before do
         FileUtils.mkdir 'adirectory'
         FileUtils.mkdir_p '/tmp/test/adirectory'
@@ -147,8 +126,6 @@ describe Purger, fakefs: true do
         FileUtils.touch '/tmp/test/adirectory/file1.log'
         File.file?('adirectory/file1.log').should be_true
         File.file?('/tmp/test/adirectory/file1.log').should be_true
-
-        purger.add_whitelist_policies DeleteAllFiles.new
 
         purger.purge 'adirectory'
       end
@@ -163,6 +140,8 @@ describe Purger, fakefs: true do
     end
 
     context 'given a directory and a basepath' do
+      let(:policy_manager) { DeleteAllFiles.new }
+
       before do
         FileUtils.mkdir 'adirectory'
         FileUtils.mkdir_p '/tmp/test/adirectory'
@@ -170,8 +149,6 @@ describe Purger, fakefs: true do
         FileUtils.touch '/tmp/test/adirectory/file1.log'
         File.file?('adirectory/file1.log').should be_true
         File.file?('/tmp/test/adirectory/file1.log').should be_true
-
-        purger.add_whitelist_policies DeleteAllFiles.new
 
         purger.purge 'adirectory', '/tmp/test'
       end
@@ -195,7 +172,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete nothing' do
-        purger.add_whitelist_policies KeepAllFiles.new
+        purger = TestPurger.new KeepAllFiles.new
 
         purger.purge 'adirectory'
 
@@ -204,7 +181,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete all files' do
-        purger.add_whitelist_policies DeleteAllFiles.new
+        purger = TestPurger.new DeleteAllFiles.new
 
         purger.purge 'adirectory'
 
@@ -213,7 +190,7 @@ describe Purger, fakefs: true do
       end
 
       it 'example: delete one file' do
-        purger.add_whitelist_policies KeepSpecificFile.new 'adirectory/file2.log'
+        purger = TestPurger.new KeepSpecificFile.new 'adirectory/file2.log'
 
         purger.purge 'adirectory'
 
@@ -227,7 +204,7 @@ describe Purger, fakefs: true do
       6.times{|index| FileUtils.touch "adirectory/file#{index}.log" }
       6.times{|index| File.file?("adirectory/file#{index}.log").should be_true}
 
-      purger.add_whitelist_policies [
+      purger = TestPurger.new GenericPolicyManager.new [
         KeepSpecificFile.new('adirectory/file0.log'),
         KeepSpecificFile.new('adirectory/file2.log'),
         KeepSpecificFile.new('adirectory/file5.log'),
