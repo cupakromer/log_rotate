@@ -18,6 +18,24 @@ class DeleteFirstFile
   end
 end
 
+class KeepFirstFile
+  def matches(file_names)
+    Array file_names.first
+  end
+end
+
+class KeepLastFile
+  def matches(file_names)
+    Array file_names.last
+  end
+end
+
+class Keep3rdFile
+  def matches(file_names)
+    Array file_names[2]
+  end
+end
+
 describe Purger, fakefs: true do
   class TestPurger < Purger
     def added_keep_rules
@@ -128,6 +146,23 @@ describe Purger, fakefs: true do
         File.exist?('adirectory/file1.log').should be_false
         File.exist?('adirectory/file2.log').should be_true
       end
+    end
+
+    it 'when multiple rules provided, it deletes files that match all rules' do
+      FileUtils.mkdir 'adirectory'
+      6.times{|index| FileUtils.touch "adirectory/file#{index}.log" }
+      6.times{|index| File.file?("adirectory/file#{index}.log").should be_true}
+
+      purger.add_keep_rules [KeepFirstFile, KeepLastFile, Keep3rdFile]
+
+      purger.purge
+
+      File.exist?('adirectory/file0.log').should be_true
+      File.exist?('adirectory/file1.log').should be_false
+      File.exist?('adirectory/file2.log').should be_true
+      File.exist?('adirectory/file3.log').should be_false
+      File.exist?('adirectory/file4.log').should be_false
+      File.exist?('adirectory/file5.log').should be_true
     end
   end
 end
