@@ -1,0 +1,111 @@
+require 'spec_helper'
+
+describe RecentDaysPolicy do
+
+  subject(:policy) { RecentDaysPolicy.new }
+
+  describe '#new' do
+    it 'sets the default days to 7' do
+      policy.days.should eq 7
+    end
+
+    it 'allows the number of days to be set' do
+      RecentDaysPolicy.new(2).days.should eq 2
+    end
+
+    it 'raises an argument error if days is zero' do
+      expect{ RecentDaysPolicy.new(0) }.to raise_error ArgumentError
+    end
+
+    it 'raises an argument error if days is negative' do
+      expect{ RecentDaysPolicy.new(-2) }.to raise_error ArgumentError
+    end
+  end
+
+  it { should_not respond_to :days= }
+
+  describe '#days' do
+    it 'returns the number of days set when created' do
+      RecentDaysPolicy.new(2).days.should eq 2
+    end
+  end
+
+  describe '#filter' do
+    context 'with valid file names' do
+      it 'given `nil` it returns []' do
+        policy.filter(nil).should eq []
+      end
+
+      it 'given `[]` it returns []' do
+        policy.filter([]).should eq []
+      end
+
+      it 'given one file name it is returned in an array' do
+        policy.filter('2012-01-21-db.log').should eq ['2012-01-21-db.log']
+      end
+
+      it 'given an array with less file names than the number of days set, ' \
+         'all names are returned' do
+        file_names = [
+          '2012-01-20-db.log',
+          '2012-01-21-db.log',
+          '2012-01-22-db.log',
+        ]
+
+        policy.filter(file_names).should match_array file_names
+      end
+
+      context 'given an unsorted array with more file ' \
+              'names than the number of days set, ' do
+        let(:file_names) {
+          [
+            '2011-01-20-db.log',
+            '2012-01-23-db.log',
+            '2012-11-21-db.log',
+            '2010-01-24-db.log',
+            '2012-01-22-db.log',
+          ]
+        }
+
+        it 'the count of the returned array equals the number of days' do
+          RecentDaysPolicy.new(3).filter(file_names).count.should eq 3
+        end
+
+        it 'only the files with the most recent dates are selected' do
+          RecentDaysPolicy.new(3).filter(file_names)
+            .should match_array [
+              '2012-01-22-db.log',
+              '2012-01-23-db.log',
+              '2012-11-21-db.log',
+            ]
+        end
+      end
+    end
+
+    context 'with invalid file names' do
+      it 'ignores malformed file names' do
+        file_names =  [
+          '2011-01-20-db.log',
+          '-01-23-db.log',
+          'adirectory/2012-11-21-db.log',
+          'sldakn#41j!@$10j',
+          '2012-01-22-db.log',
+          'adirectory/2012-11-21-db.log/stuff',
+        ]
+
+        policy.filter(file_names).should match_array [
+          '2011-01-20-db.log',
+          'adirectory/2012-11-21-db.log',
+          '2012-01-22-db.log',
+        ]
+      end
+
+      it 'ignore duplicate names' do
+        file_names = ['2011-01-20-db.log','2011-01-20-db.log']
+
+        policy.filter(file_names).should eq ['2011-01-20-db.log']
+      end
+    end
+  end
+
+end
