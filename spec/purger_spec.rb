@@ -1,28 +1,6 @@
 require 'spec_helper'
 
-class KeepAllFiles
-  def filter(file_names)
-    file_names
-  end
-end
-
-class DeleteAllFiles
-  def filter(file_names)
-    []
-  end
-end
-
-class KeepSpecificFile
-  def initialize(file_to_keep)
-    @filename = file_to_keep
-  end
-
-  def filter(file_names)
-    Array @filename
-  end
-end
-
-describe Purger, fakefs: true do
+module Specs
   class TestPurger < Purger
     def set_policy_manager
       policy_manager
@@ -32,11 +10,18 @@ describe Purger, fakefs: true do
       super file_names
     end
   end
+end
 
-  let(:policy_manager) { GenericPolicyManager.new }
+describe Purger, fakefs: true do
+
+  let(:delete_all_policy) { stub 'delete_all', filter: [] }
+  let(:keep_all_policy) {
+    stub('keep_all').tap{ |s| s.stub(:filter){|file_names| file_names} }
+  }
+  let(:policy_manager) { keep_all_policy }
+
   subject(:purger) { Purger.new policy_manager }
 
-  it { should_not respond_to :add_whitelist_policies }
   it { should respond_to :purge }
   it { should respond_to :last_purged_directory }
   it { should respond_to :last_purged }
@@ -46,37 +31,47 @@ describe Purger, fakefs: true do
       expect{ Purger.new }.to raise_error ArgumentError
     end
 
-    it 'will accept a single policy' do
-      policy_manager = mock GenericPolicyManager
-      TestPurger.new(policy_manager)
-                .set_policy_manager
-                .should be policy_manager
+    it 'will accept a single policy manager' do
+      policy_manager = mock 'PolicyManager'
+      Specs::TestPurger.new(policy_manager)
+                       .set_policy_manager
+                       .should be policy_manager
+    end
+
+    it 'will not accept multiple policy managers' do
+      expect{
+        Purger.new(mock('PolicyManager'), mock('PolicyManager'))
+      }.to raise_error ArgumentError
     end
   end
 
   describe '#last_purged' do
+    let(:directory) { 'adirectory' }
+
+    before do
+      FileUtils.mkdir directory
+      FileUtils.touch "#{directory}/file1.log"
+      FileUtils.touch "#{directory}/file2.log"
+    end
+
     it 'is empty if #purge is never called' do
       purger.last_purged.should be_empty
     end
 
     it 'is empty if no files were deleted when purge was called' do
-      FileUtils.mkdir 'adirectory'
-      purger = TestPurger.new KeepAllFiles.new
+      purger = Specs::TestPurger.new keep_all_policy
       purger.last_purged = ['a file']
       purger.last_purged.should_not be_empty
 
-      purger.purge 'adirectory'
+      purger.purge directory
 
       purger.last_purged.should be_empty
     end
 
     it 'contains the names of files that were deleted when purge was called' do
-      FileUtils.mkdir 'adirectory'
-      FileUtils.touch 'adirectory/file1.log'
-      FileUtils.touch 'adirectory/file2.log'
-      purger = TestPurger.new DeleteAllFiles.new
+      purger = Purger.new delete_all_policy
 
-      purger.purge 'adirectory'
+      purger.purge directory
 
       purger.last_purged.should match_array ['adirectory/file1.log',
                                              'adirectory/file2.log']
@@ -104,14 +99,8 @@ describe Purger, fakefs: true do
       purger.purge('adirectory').should be purger
     end
 
-    context 'when no rules provided' do
-      it '#last_purged should be empty' do
-        purger.purge('adirectory').last_purged.should be_empty
-      end
-    end
-
     context 'given only a directory' do
-      let(:policy_manager) { DeleteAllFiles.new }
+      let(:policy_manager) { delete_all_policy }
 
       before do
         FileUtils.mkdir 'adirectory'
@@ -134,7 +123,7 @@ describe Purger, fakefs: true do
     end
 
     context 'given a directory and a basepath' do
-      let(:policy_manager) { DeleteAllFiles.new }
+      let(:policy_manager) { delete_all_policy }
 
       before do
         FileUtils.mkdir 'adirectory'
@@ -156,62 +145,51 @@ describe Purger, fakefs: true do
       end
     end
 
-    context 'when one rule provided it deletes files that match the rule' do
+    context 'deletes files based on the policy manager' do
+      let(:directory) { 'adirectory' }
+      let(:file_names) {
+        6.times.each_with_object([]){ |index, names|
+          names << "#{directory}/file#{index}.log"
+        }
+      }
+
       before do
-        FileUtils.mkdir 'adirectory'
-        FileUtils.touch 'adirectory/file1.log'
-        FileUtils.touch 'adirectory/file2.log'
-        File.file?('adirectory/file1.log').should be_true
-        File.file?('adirectory/file2.log').should be_true
+        FileUtils.mkdir directory
+        file_names.each{ |name| FileUtils.touch name }
+        file_names.each{ |name| File.exist?(name).should be_true }
       end
 
-      it 'example: delete nothing' do
-        purger = TestPurger.new KeepAllFiles.new
+      it 'example: policy manager returns all files => nothing is deleted' do
+        Purger.new(keep_all_policy).purge directory
 
-        purger.purge 'adirectory'
-
-        File.exist?('adirectory/file1.log').should be_true
-        File.exist?('adirectory/file2.log').should be_true
+        file_names.each{ |name| File.exist?(name).should be_true }
       end
 
-      it 'example: delete all files' do
-        purger = TestPurger.new DeleteAllFiles.new
+      it 'example: policy manager returns no files => all are deleted' do
+        Purger.new(delete_all_policy).purge directory
 
-        purger.purge 'adirectory'
-
-        File.exist?('adirectory/file1.log').should be_false
-        File.exist?('adirectory/file2.log').should be_false
+        file_names.each{ |name| File.exist?(name).should be_false }
       end
 
-      it 'example: delete one file' do
-        purger = TestPurger.new KeepSpecificFile.new 'adirectory/file2.log'
+      it 'example: policy manager returns a subset of files => converse are deleted' do
+        expect_kept = []
+        expect_deleted = []
+        file_names.each_with_index do |name, index|
+          if index.odd?
+            expect_kept << name
+          else
+            expect_deleted << name
+          end
+        end
+        policy_manager = stub('keep_specific', filter: expect_kept)
+        purger = Purger.new policy_manager
 
-        purger.purge 'adirectory'
+        purger.purge directory
 
-        File.exist?('adirectory/file1.log').should be_false
-        File.exist?('adirectory/file2.log').should be_true
+        expect_kept.each{ |name| File.exist?(name).should be_true }
+        expect_deleted.each{ |name| File.exist?(name).should be_false }
       end
-    end
-
-    it 'when multiple rules provided, it deletes files that match all rules' do
-      FileUtils.mkdir 'adirectory'
-      6.times{|index| FileUtils.touch "adirectory/file#{index}.log" }
-      6.times{|index| File.file?("adirectory/file#{index}.log").should be_true}
-
-      purger = TestPurger.new GenericPolicyManager.new [
-        KeepSpecificFile.new('adirectory/file0.log'),
-        KeepSpecificFile.new('adirectory/file2.log'),
-        KeepSpecificFile.new('adirectory/file5.log'),
-      ]
-
-      purger.purge 'adirectory'
-
-      File.exist?('adirectory/file0.log').should be_true
-      File.exist?('adirectory/file1.log').should be_false
-      File.exist?('adirectory/file2.log').should be_true
-      File.exist?('adirectory/file3.log').should be_false
-      File.exist?('adirectory/file4.log').should be_false
-      File.exist?('adirectory/file5.log').should be_true
     end
   end
+
 end
