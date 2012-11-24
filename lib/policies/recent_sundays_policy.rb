@@ -6,6 +6,8 @@
 #   * At most one name per date
 #
 # Filters the most recent names that have dates on a Sunday.
+require 'date'
+
 class RecentSundaysPolicy
   attr_reader :sundays
 
