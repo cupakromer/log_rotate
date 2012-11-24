@@ -25,7 +25,11 @@ class RecentFirstOfMonthPolicy
 
   def valid_first_of_month_file_names(file_names)
     file_names.select{ |name|
-      File.basename(name) =~ /\A\d{4}-((0[1-9])|(1[012]))-01.*\z/
+      Date.strptime(date_part(name), '%Y-%m-%d').day == 1 rescue false
     }
+  end
+
+  def date_part(name)
+    File.basename(name)[0,10]
   end
 end
