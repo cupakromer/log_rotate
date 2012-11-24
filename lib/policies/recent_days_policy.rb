@@ -6,6 +6,8 @@
 #   * At most one name per date
 #
 # Filters the most recent names provided.
+require 'date'
+
 class RecentDaysPolicy
   attr_reader :days
 
@@ -24,22 +26,12 @@ class RecentDaysPolicy
   attr_writer :days
 
   def valid_file_names(file_names)
-    file_names.select{|name| name =~ valid_file_name_format}
+    file_names.select{ |name|
+      Date.strptime(date_part(name), '%Y-%m-%d') rescue false
+    }
   end
 
-  def valid_date_format
-    "\\d{4}-\\d{2}-\\d{2}"
-  end
-
-  def valid_file_name_format
-    @valid_format ||= /\A#{valid_prefix}#{valid_date_format}#{valid_postfix}\z/
-  end
-
-  def valid_prefix
-    "(.*#{File::SEPARATOR})?"
-  end
-
-  def valid_postfix
-    "-[^#{File::SEPARATOR}]*"
+  def date_part(name)
+    File.basename(name)[0,10]
   end
 end

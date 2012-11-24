@@ -85,11 +85,14 @@ describe RecentDaysPolicy do
     context 'with invalid file names' do
       it 'ignores malformed file names' do
         file_names =  [
+          '2012-12-42-db.log',
           '2011-01-20-db.log',
+          '2011-04-31-db.log',
           '-01-23-db.log',
           'adirectory/2012-11-21-db.log',
           'sldakn#41j!@$10j',
           '2012-01-22-db.log',
+          '2012-13-22-db.log',
           'adirectory/2012-11-21-db.log/stuff',
         ]
 
