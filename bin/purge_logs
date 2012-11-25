@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 
 $LOAD_PATH << File.expand_path('../lib', File.dirname(__FILE__))
+require 'purger'
+require 'generic_policy_manager'
+require 'policies'
 
 def usage
 <<EOF
@@ -17,8 +20,14 @@ unless File.directory? directory
   exit 1
 end
 
+retention_policy = GenericPolicyManager.new [
+  NonDateStampedPolicy.new,
+  RecentDaysPolicy.new,
+  RecentFirstOfMonthPolicy.new,
+  RecentSundaysPolicy.new,
+]
 
-purger = Purger.new DefaultWhitelists.new
+purger = Purger.new retention_policy
 
 purger.purge directory
 
