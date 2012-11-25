@@ -1,6 +1,8 @@
 log_rotate
 ==========
 
+[![Build Status](https://secure.travis-ci.org/cupakromer/log_rotate.png?branch=master)](http://travis-ci.org/cupakromer/log_rotate) [![Dependency Status](https://gemnasium.com/cupakromer/log_rotate.png?travis)](https://gemnasium.com/cupakromer/log_rotate) [![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/cupakromer/log_rotate)
+
 After running the program, the specified directory should contain logs which
 cover:
 
