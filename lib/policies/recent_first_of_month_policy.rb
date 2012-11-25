@@ -6,6 +6,7 @@
 #   * At most one name per date
 #
 # Filters the most recent names that have dates on the first of months.
+require 'helpers'
 require_relative 'recent_limit_policy'
 
 class RecentFirstOfMonthPolicy < RecentLimitPolicy
@@ -14,6 +15,8 @@ class RecentFirstOfMonthPolicy < RecentLimitPolicy
   def initialize(months = 3) super end
 
   private
+
+  include DateStamped
 
   def valid_file_names(file_names)
     file_names.select{ |name| date(name).day == 1 rescue false }

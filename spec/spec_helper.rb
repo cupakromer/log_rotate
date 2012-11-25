@@ -1,6 +1,7 @@
 require 'fakefs/spec_helpers'
 require 'purger'
 require 'generic_policy_manager'
+require 'helpers'
 require 'policies'
 
 # Include all support files

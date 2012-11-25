@@ -6,6 +6,7 @@
 #   * At most one name per date
 #
 # Filters the most recent names that have dates on a Sunday.
+require 'helpers'
 require_relative 'recent_limit_policy'
 
 class RecentSundaysPolicy < RecentLimitPolicy
@@ -14,6 +15,8 @@ class RecentSundaysPolicy < RecentLimitPolicy
   def initialize(sundays = 4) super end
 
   private
+
+  include DateStamped
 
   def valid_file_names(file_names)
     file_names.select{ |name| date(name).sunday? rescue false }
