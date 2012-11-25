@@ -6,32 +6,16 @@
 #   * At most one name per date
 #
 # Filters the most recent names that have dates on a Sunday.
-require 'date'
+require_relative 'recent_limit_policy'
 
-class RecentSundaysPolicy
-  attr_reader :sundays
+class RecentSundaysPolicy < RecentLimitPolicy
+  alias_method :sundays, :limit
 
-  def initialize(sundays = 4)
-    raise ArgumentError.new('number of Sundays must be great than 0') if sundays < 1
-
-    self.sundays = sundays
-  end
-
-  def filter(file_names)
-    valid_sunday_file_names(Array(file_names)).uniq.sort.last(sundays)
-  end
+  def initialize(sundays = 4) super end
 
   private
 
-  attr_writer :sundays
-
-  def valid_sunday_file_names(file_names)
-    file_names.select{ |name|
-      Date.strptime(date_part(name), '%Y-%m-%d').sunday? rescue false
-    }
-  end
-
-  def date_part(name)
-    File.basename(name)[0,10]
+  def valid_file_names(file_names)
+    file_names.select{ |name| date(name).sunday? rescue false }
   end
 end

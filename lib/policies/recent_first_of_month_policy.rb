@@ -6,32 +6,16 @@
 #   * At most one name per date
 #
 # Filters the most recent names that have dates on the first of months.
-require 'date'
+require_relative 'recent_limit_policy'
 
-class RecentFirstOfMonthPolicy
-  attr_reader :months
+class RecentFirstOfMonthPolicy < RecentLimitPolicy
+  alias_method :months, :limit
 
-  def initialize(months = 3)
-    raise ArgumentError.new('months must be greater than 0') if months < 1
-
-    self.months = months
-  end
-
-  def filter(file_names)
-    valid_first_of_month_file_names(Array(file_names)).uniq.sort.last(months)
-  end
+  def initialize(months = 3) super end
 
   private
 
-  attr_writer :months
-
-  def valid_first_of_month_file_names(file_names)
-    file_names.select{ |name|
-      Date.strptime(date_part(name), '%Y-%m-%d').day == 1 rescue false
-    }
-  end
-
-  def date_part(name)
-    File.basename(name)[0,10]
+  def valid_file_names(file_names)
+    file_names.select{ |name| date(name).day == 1 rescue false }
   end
 end
