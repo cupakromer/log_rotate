@@ -2,8 +2,10 @@ GEM
   remote: http://rubygems.org/
   specs:
     diff-lcs (1.1.3)
-    fakefs (0.4.1)
-    rake (10.0.0)
+    emoji-rspec (0.0.1)
+      rspec (~> 2.10)
+    fakefs (0.4.2)
+    rake (10.0.2)
     rspec (2.12.0)
       rspec-core (~> 2.12.0)
       rspec-expectations (~> 2.12.0)
@@ -17,6 +19,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  emoji-rspec
   fakefs
   rake
   rspec
