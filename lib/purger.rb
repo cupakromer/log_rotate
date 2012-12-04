@@ -1,8 +1,8 @@
 class Purger
   attr_reader :last_purged_directory, :last_purged
 
-  def initialize(policy_manager)
-    self.policy_manager = policy_manager
+  def initialize(policy)
+    self.policy = policy
     self.last_purged = []
   end
 
@@ -19,12 +19,12 @@ class Purger
 
   private
 
-  attr_accessor :policy_manager
+  attr_accessor :policy
   attr_writer :last_purged, :last_purged_directory
 
   def files_to_delete
     all_files = Dir["#{last_purged_directory}/*"]
 
-    all_files - policy_manager.filter(all_files)
+    all_files - policy.filter(all_files)
   end
 end

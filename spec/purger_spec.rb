@@ -2,8 +2,8 @@ require 'spec_helper'
 
 module Specs
   class TestPurger < Purger
-    def set_policy_manager
-      policy_manager
+    def set_policy
+      policy
     end
 
     def last_purged=(file_names)
@@ -18,9 +18,9 @@ describe Purger, fakefs: true do
   let(:keep_all_policy) {
     stub('keep_all').tap{ |s| s.stub(:filter){|file_names| file_names} }
   }
-  let(:policy_manager) { keep_all_policy }
+  let(:policy) { keep_all_policy }
 
-  subject(:purger) { Purger.new policy_manager }
+  subject(:purger) { Purger.new policy }
 
   it { should respond_to :purge }
   it { should respond_to :last_purged_directory }
@@ -32,10 +32,10 @@ describe Purger, fakefs: true do
     end
 
     it 'will accept a single policy manager' do
-      policy_manager = mock 'PolicyManager'
-      Specs::TestPurger.new(policy_manager)
-                       .set_policy_manager
-                       .should be policy_manager
+      policy = mock 'PolicyManager'
+      Specs::TestPurger.new(policy)
+                       .set_policy
+                       .should be policy
     end
 
     it 'will not accept multiple policy managers' do
@@ -48,11 +48,7 @@ describe Purger, fakefs: true do
   describe '#last_purged' do
     let(:directory) { 'adirectory' }
 
-    before do
-      FileUtils.mkdir directory
-      FileUtils.touch "#{directory}/file1.log"
-      FileUtils.touch "#{directory}/file2.log"
-    end
+    before { fs_create directory, ['file1.log', 'file2.log'] }
 
     it 'is empty if #purge is never called' do
       purger.last_purged.should be_empty
@@ -61,7 +57,7 @@ describe Purger, fakefs: true do
     it 'is empty if no files were deleted when purge was called' do
       purger = Specs::TestPurger.new keep_all_policy
       purger.last_purged = ['a file']
-      purger.last_purged.should_not be_empty
+      precondition { purger.last_purged == ['a file'] }
 
       purger.purge directory
 
@@ -84,12 +80,13 @@ describe Purger, fakefs: true do
     end
 
     it 'returns the full path of the last directory passed to `#purge`' do
-      FileUtils.mkdir_p '/tmp/test/adirectory'
-      FileUtils.mkdir_p '/tmp/test/bdirectory'
-      purger.purge('adirectory', '/tmp/test')
+      fs_create '/tmp/test/adirectory'
+      fs_create '/tmp/test/bdirectory'
 
+      purger.purge('adirectory', '/tmp/test')
       purger.purge('bdirectory', '/tmp/test')
-            .last_purged_directory
+
+      purger.last_purged_directory
             .should eq '/tmp/test/bdirectory'
     end
   end
@@ -100,48 +97,44 @@ describe Purger, fakefs: true do
     end
 
     context 'given only a directory' do
-      let(:policy_manager) { delete_all_policy }
+      let(:policy) { delete_all_policy }
 
       before do
-        FileUtils.mkdir 'adirectory'
-        FileUtils.mkdir_p '/tmp/test/adirectory'
-        FileUtils.touch 'adirectory/file1.log'
-        FileUtils.touch '/tmp/test/adirectory/file1.log'
-        File.file?('adirectory/file1.log').should be_true
-        File.file?('/tmp/test/adirectory/file1.log').should be_true
-
-        purger.purge 'adirectory'
+        fs_create 'adirectory', 'file1.log'
+        fs_create '/tmp/test/adirectory', 'file1.log'
+        precondition{ File.exist?('adirectory/file1.log') }
+        precondition{ File.exist?('/tmp/test/adirectory/file1.log') }
       end
 
       it 'deletes relative to the current directory' do
-        File.exist?('adirectory/file1.log').should be_false
+        expect{ purger.purge 'adirectory' }
+          .to have_deleted 'adirectory/file1.log'
       end
 
       it 'does not delete other directory files' do
-        File.exist?('/tmp/test/adirectory/file1.log').should be_true
+        expect{ purger.purge 'adirectory' }
+          .to have_kept '/tmp/test/adirectory/file1.log'
       end
     end
 
     context 'given a directory and a basepath' do
-      let(:policy_manager) { delete_all_policy }
+      let(:policy) { delete_all_policy }
 
       before do
-        FileUtils.mkdir 'adirectory'
-        FileUtils.mkdir_p '/tmp/test/adirectory'
-        FileUtils.touch 'adirectory/file1.log'
-        FileUtils.touch '/tmp/test/adirectory/file1.log'
-        File.file?('adirectory/file1.log').should be_true
-        File.file?('/tmp/test/adirectory/file1.log').should be_true
-
-        purger.purge 'adirectory', '/tmp/test'
+        fs_create 'adirectory', 'file1.log'
+        fs_create '/tmp/test/adirectory', 'file1.log'
+        precondition{ File.exist?('adirectory/file1.log') }
+        precondition{ File.exist?('/tmp/test/adirectory/file1.log') }
       end
 
       it 'deletes relative to the basepath directory' do
-        File.exist?('/tmp/test/adirectory/file1.log').should be_false
+        expect{ purger.purge 'adirectory', '/tmp/test' }
+          .to have_deleted '/tmp/test/adirectory/file1.log'
       end
 
       it 'does not delete other directory files' do
-        File.exist?('adirectory/file1.log').should be_true
+        expect{ purger.purge 'adirectory', '/tmp/test' }
+          .to have_kept 'adirectory/file1.log'
       end
     end
 
@@ -181,8 +174,8 @@ describe Purger, fakefs: true do
             expect_deleted << name
           end
         end
-        policy_manager = stub('keep_specific', filter: expect_kept)
-        purger = Purger.new policy_manager
+        policy = stub('keep_specific', filter: expect_kept)
+        purger = Purger.new policy
 
         purger.purge directory
 
